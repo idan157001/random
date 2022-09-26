@@ -3,13 +3,13 @@ import time
 import string
 import threading
 import urllib3.request
-import xmltodict 
+import xmltodict
 req = [
     'M-SEARCH * HTTP/1.1',
     'Host:239.255.255.250:1900',
     'Man:"ssdp:discover"',
     'MX:1',
-    'ST: upnp:rootdevice',
+    'ST: urn:dial-multiscreen-org:service:dial:1',
     '',
     '']
 #urn:dial-multiscreen-org:service:dial:1
@@ -31,7 +31,8 @@ class SSDP:
         
         threading.Thread(target=self.counter,daemon=True).start()
         self.sock = self.config_socket()
-        
+    
+
     def counter(self):
         while True:
             before_devices_count = len(self.devices)
@@ -41,6 +42,7 @@ class SSDP:
             if before_devices_count == now_devices_count:
                 self.sock.close() # cause OSError 
 
+
     def config_socket(self):
         """Create the socket """
         sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM,socket.IPPROTO_UDP)
@@ -48,7 +50,8 @@ class SSDP:
         sock.sendto(bytes(req.encode()),multi_group)
         return sock
 
-    def ssdp_get_data(self):
+
+    def driver(self):
         while True:
             try:
                 data = self.sock.recv(1024).decode()
@@ -57,17 +60,13 @@ class SSDP:
                 self.current_device = ''
                 time.sleep(0.1)
                 
-
             except OSError: # called when self.counter close socket connection
                 break
         
         self.get_data_from_xml()
-
         return self.devices
         
-            
 
-    
     def find_xml_file(self):
         """Get device ip address from data and add it to the set > {'name': '192.168.1.1'}"""
         lines = self.current_device.split("LOCATION:")
@@ -87,22 +86,20 @@ class SSDP:
             data = xmltodict.parse(data)
             self.get_url_base(data)
 
+
     def get_url_base(self,data):
         try:
-            URLBase = (data['root']['URLBase'])
             friendlyName =  data['root']['device']['friendlyName']
             UDN = data['root']['device']['UDN']
-            self.devices[friendlyName] = [URLBase,UDN] 
+            self.devices[friendlyName] = [UDN]
+
+            URLBase = (data['root']['URLBase'])
+            self.devices[friendlyName].append(URLBase)
 
         except Exception as e:
-            print('error')
+            pass
 
 
-                      
-
-            
-            
-
-
-x = SSDP().ssdp_get_data()
+        
+x = SSDP().driver()
 print(x)
